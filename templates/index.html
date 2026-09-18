@@ -4,182 +4,215 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Route Hazard Analysis</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         * {
             box-sizing: border-box;
         }
         body {
-            font-family: 'Segoe UI', Arial, sans-serif;
             margin: 0;
-            padding: 0;
+            padding: 24px;
             min-height: 100vh;
+            font-family: 'IBM Plex Mono', monospace;
+            background-color: #eeece2;
+            color: #1c1c1a;
+        }
+
+        /* Outer sheet, like a drawing border */
+        .sheet {
+            max-width: 1100px;
+            margin: 0 auto;
+            border: 2px solid #1c1c1a;
+            background-color: #f5f3ea;
+        }
+
+        /* Title block, engineering-drawing style */
+        .titleblock {
+            display: grid;
+            grid-template-columns: 1fr 260px;
+            border-bottom: 2px solid #1c1c1a;
+        }
+        .titleblock .main {
+            padding: 26px 28px;
+            border-right: 1px solid #1c1c1a;
+        }
+        .titleblock .main .facility {
+            font-family: 'Oswald', sans-serif;
+            font-size: 2.1rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            line-height: 1.1;
+        }
+        .titleblock .main .doc-title {
+            margin-top: 6px;
+            font-size: 0.95rem;
+            color: #4b4b46;
+        }
+        .titleblock .meta {
             display: flex;
             flex-direction: column;
-            background-color: #0f1420;
         }
-
-        /* Header */
-        .header {
-            background: linear-gradient(180deg, #131a2b 0%, #0f1420 100%);
-            color: #ffffff;
-            text-align: center;
-            padding: 45px 20px 35px;
-            border-bottom: 3px solid #f5a623;
-            position: relative;
-        }
-        .header::before {
-            content: "";
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-image: repeating-linear-gradient(
-                45deg,
-                rgba(245, 166, 35, 0.04) 0px,
-                rgba(245, 166, 35, 0.04) 12px,
-                transparent 12px,
-                transparent 24px
-            );
-            pointer-events: none;
-        }
-        .header .tag {
-            display: inline-block;
-            background: rgba(245, 166, 35, 0.15);
-            color: #f5a623;
-            font-size: 0.75rem;
-            font-weight: 700;
-            letter-spacing: 2px;
-            padding: 5px 14px;
-            border-radius: 20px;
-            border: 1px solid rgba(245, 166, 35, 0.4);
-            margin-bottom: 14px;
-        }
-        .header h1 {
-            margin: 0;
-            font-size: 2.4rem;
-            letter-spacing: 1px;
-            position: relative;
-        }
-        .header p {
-            margin: 10px 0 0;
-            font-size: 1.05rem;
-            color: #a8b0c3;
-            position: relative;
-        }
-
-        /* Search Bar */
-        .search-container {
-            display: flex;
-            justify-content: center;
-            margin: 35px 0 10px;
-            padding: 0 20px;
-        }
-        .search-container input {
-            width: 100%;
-            max-width: 560px;
-            padding: 14px 22px;
-            font-size: 1.05rem;
-            border-radius: 8px;
-            border: 1px solid #2a3348;
-            background-color: #ffffff;
-            box-shadow: 0px 4px 14px rgba(0, 0, 0, 0.08);
-            outline: none;
-            transition: box-shadow 0.2s, border-color 0.2s;
-        }
-        .search-container input:focus {
-            border-color: #f5a623;
-            box-shadow: 0px 4px 16px rgba(245, 166, 35, 0.2);
-        }
-        .search-container input::placeholder {
-            color: #aaa;
-            font-style: italic;
-        }
-
-        /* Links Section — now with a visible watermark */
-        .links {
-            position: relative;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-            gap: 22px;
-            margin: 30px auto;
-            padding: 0 30px;
-            justify-items: stretch;
+        .titleblock .meta .field {
             flex: 1;
-            max-width: 1200px;
-            width: 100%;
-            background-color: #f4f5f8;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='200' viewBox='0 0 420 200'%3E%3Ctext x='0' y='110' font-family='Arial' font-size='34' font-weight='800' fill='%236c63ff' fill-opacity='0.14' transform='rotate(-25 210 100)'%3EURBAN TECHNOLOGY%3C/text%3E%3C/svg%3E");
-            background-repeat: repeat;
-            border-radius: 12px 12px 0 0;
-            padding-top: 40px;
+            padding: 8px 14px;
+            border-bottom: 1px solid #1c1c1a;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
-        .links a {
-            text-decoration: none;
+        .titleblock .meta .field:last-child {
+            border-bottom: none;
+        }
+        .titleblock .meta .field .k {
+            font-size: 0.65rem;
+            color: #6b6b64;
+        }
+        .titleblock .meta .field .v {
+            font-size: 0.82rem;
+            font-weight: 500;
+            margin-top: 2px;
+        }
+        .titleblock .meta .field.hazard .v {
+            color: #a34f14;
+        }
+
+        /* Search, styled as a form field, not a rounded pill */
+        .search-row {
+            padding: 18px 28px;
+            border-bottom: 2px solid #1c1c1a;
+        }
+        .search-row label {
+            display: block;
+            font-size: 0.68rem;
+            color: #6b6b64;
+            margin-bottom: 6px;
+        }
+        .search-row input {
+            width: 100%;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.95rem;
+            padding: 9px 10px;
+            border: 1px solid #1c1c1a;
+            border-radius: 0;
+            background-color: #fff;
+            outline: none;
+        }
+        .search-row input:focus {
+            border-color: #a34f14;
+            box-shadow: inset 0 0 0 1px #a34f14;
+        }
+        .search-row input::placeholder {
+            color: #9a9a92;
+        }
+
+        /* Index of routes — a document index, not a card grid */
+        .index {
+            position: relative;
+            padding: 6px 0 10px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='170' viewBox='0 0 360 170'%3E%3Ctext x='-10' y='95' font-family='Oswald' font-size='26' font-weight='700' fill='none' stroke='%231c1c1a' stroke-opacity='0.16' stroke-width='1' letter-spacing='2' transform='rotate(-18 180 85)'%3EURBAN TECHNOLOGY%3C/text%3E%3C/svg%3E");
+            background-repeat: repeat;
+        }
+        .index-heading {
+            padding: 14px 28px 6px;
+            font-size: 0.7rem;
+            color: #6b6b64;
+        }
+        .index a {
+            position: relative;
             display: flex;
             align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 20px 15px;
-            color: #1c2333;
-            background-color: #ffffff;
-            border-radius: 10px;
-            font-size: 1rem;
-            font-weight: 600;
-            border-left: 4px solid #f5a623;
-            box-shadow: 0px 3px 10px rgba(15, 20, 32, 0.08);
-            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-            word-wrap: break-word;
-            position: relative;
-            z-index: 1; /* keep tiles crisp above the watermark */
+            gap: 14px;
+            text-decoration: none;
+            color: #1c1c1a;
+            padding: 11px 28px;
+            border-top: 1px solid #d8d5c7;
+            font-size: 0.95rem;
+            transition: background-color 0.12s ease;
         }
-        .links a:hover {
-            transform: translateY(-4px);
-            box-shadow: 0px 8px 20px rgba(245, 166, 35, 0.25);
-            border-left-color: #d98a00;
+        .index a:first-of-type {
+            border-top: none;
+        }
+        .index a .num {
+            font-size: 0.8rem;
+            color: #a34f14;
+            width: 28px;
+            flex-shrink: 0;
+        }
+        .index a .name {
+            flex-shrink: 0;
+        }
+        .index a .leader {
+            flex: 1;
+            border-bottom: 1px dotted #b7b4a6;
+            margin-bottom: 5px;
+        }
+        .index a .go {
+            font-size: 0.75rem;
+            color: #6b6b64;
+        }
+        .index a:hover {
+            background-color: #e9e5d4;
         }
 
-        /* Footer */
-        .footer {
-            background-color: #f4f5f8;
-            text-align: center;
-            padding: 25px 20px 30px;
-        }
-        .footer .divider {
-            width: 60px;
-            height: 3px;
-            background: #f5a623;
-            margin: 0 auto 16px;
-            border-radius: 2px;
-        }
-        .footer p {
-            margin: 0;
-            font-size: 0.9rem;
-            color: #6b7280;
-            letter-spacing: 0.3px;
-        }
-        .footer strong {
-            color: #1c2333;
+        /* Bottom strip, doc-control style — no separate footer feel */
+        .doc-strip {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 28px;
+            border-top: 2px solid #1c1c1a;
+            font-size: 0.68rem;
+            color: #6b6b64;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <span class="tag">HAZARD ANALYSIS SYSTEM</span>
-        <h1>IOCL PARADEEP TERMINAL</h1>
-        <p>Route Analysis For Hazards</p>
-    </div>
-    <div class="search-container">
-        <form method="POST">
-            <input type="text" name="search" placeholder="Type to search for a page...">
-        </form>
-    </div>
-    <div class="links">
-        {% for link in links %}
-            <!-- Display only the name without the .html extension -->
-            <a href="{{ url_for('serve_page', filename=link) }}">{{ link.split('.')[0] }}</a>
-        {% endfor %}
-    </div>
-    <div class="footer">
-        <div class="divider"></div>
-        <p>Powered and Developed by <strong>Urban Technology</strong></p>
+    <div class="sheet">
+        <div class="titleblock">
+            <div class="main">
+                <div class="facility">IOCL Paradeep Terminal</div>
+                <div class="doc-title">Route Analysis for Hazards</div>
+            </div>
+            <div class="meta">
+                <div class="field">
+                    <span class="k">System</span>
+                    <span class="v">Route Hazard Index</span>
+                </div>
+                <div class="field hazard">
+                    <span class="k">Classification</span>
+                    <span class="v">Restricted — Site Use</span>
+                </div>
+                <div class="field">
+                    <span class="k">Prepared by</span>
+                    <span class="v">Urban Technology</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="search-row">
+            <form method="POST">
+                <label for="search">Search route</label>
+                <input id="search" type="text" name="search" placeholder="Type a route name...">
+            </form>
+        </div>
+
+        <div class="index">
+            <div class="index-heading">Index of routes</div>
+            {% for link in links %}
+                <a href="{{ url_for('serve_page', filename=link) }}">
+                    <span class="num">{{ "%02d"|format(loop.index) }}</span>
+                    <span class="name">{{ link.split('.')[0] }}</span>
+                    <span class="leader"></span>
+                    <span class="go">open</span>
+                </a>
+            {% endfor %}
+        </div>
+
+        <div class="doc-strip">
+            <span>Route Hazard Index</span>
+            <span>Powered and developed by Urban Technology</span>
+        </div>
     </div>
 </body>
 </html>
